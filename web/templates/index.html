@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Unified monitoring dashboard for camera, hardware, and service monitors with live status, configuration, and log viewing.">
+  <title>Monitoring Control Center</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app">
+
+  <!-- ============ HEADER ============ -->
+  <header class="header">
+    <div class="header-left">
+      <div class="header-logo">🖥</div>
+      <div>
+        <h1>Monitoring Control Center</h1>
+        <p>Camera · Hardware · Service Monitors</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-success btn-sm" onclick="startAll()">▶ Start All</button>
+      <button class="btn btn-danger btn-sm" onclick="stopAll()">■ Stop All</button>
+    </div>
+  </header>
+
+  <!-- ============ STATUS CARDS ============ -->
+  <div class="status-grid">
+    <div class="status-card stopped" id="card-camera">
+      <div class="status-card-header">
+        <div class="status-card-title">📷 Camera Monitor</div>
+        <div class="status-badge stopped">
+          <span class="pulse-dot stopped"></span>
+          <span>Stopped</span>
+        </div>
+      </div>
+      <div class="status-card-actions">
+        <button class="btn btn-primary btn-sm" onclick="startMonitor('camera')">Start</button>
+        <button class="btn btn-danger btn-sm" onclick="stopMonitor('camera')">Stop</button>
+        <button class="btn btn-ghost btn-sm" onclick="restartMonitor('camera')">Restart</button>
+      </div>
+    </div>
+    <div class="status-card stopped" id="card-hardware">
+      <div class="status-card-header">
+        <div class="status-card-title">⚙️ Hardware Monitor</div>
+        <div class="status-badge stopped">
+          <span class="pulse-dot stopped"></span>
+          <span>Stopped</span>
+        </div>
+      </div>
+      <div class="status-card-actions">
+        <button class="btn btn-primary btn-sm" onclick="startMonitor('hardware')">Start</button>
+        <button class="btn btn-danger btn-sm" onclick="stopMonitor('hardware')">Stop</button>
+        <button class="btn btn-ghost btn-sm" onclick="restartMonitor('hardware')">Restart</button>
+      </div>
+    </div>
+    <div class="status-card stopped" id="card-services">
+      <div class="status-card-header">
+        <div class="status-card-title">🔧 Service Monitor</div>
+        <div class="status-badge stopped">
+          <span class="pulse-dot stopped"></span>
+          <span>Stopped</span>
+        </div>
+      </div>
+      <div class="status-card-actions">
+        <button class="btn btn-primary btn-sm" onclick="startMonitor('services')">Start</button>
+        <button class="btn btn-danger btn-sm" onclick="stopMonitor('services')">Stop</button>
+        <button class="btn btn-ghost btn-sm" onclick="restartMonitor('services')">Restart</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ TABS ============ -->
+  <div class="tabs-header">
+    <button class="tab-btn active" data-tab="overview" onclick="switchTab('overview')">📊 Overview</button>
+    <button class="tab-btn" data-tab="config-camera" onclick="switchTab('config-camera')">📷 Camera Config</button>
+    <button class="tab-btn" data-tab="config-hardware" onclick="switchTab('config-hardware')">⚙️ Hardware Config</button>
+    <button class="tab-btn" data-tab="config-services" onclick="switchTab('config-services')">🔧 Services Config</button>
+  </div>
+
+  <!-- ============ TAB: OVERVIEW ============ -->
+  <div class="tab-panel active" id="tab-overview">
+
+    <!-- Charts Section -->
+    <div class="charts-grid" id="charts-section">
+      <!-- Hardware Charts -->
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div class="chart-card-title">📈 CPU & RAM Usage</div>
+          <div class="chart-controls" id="hw-chart-controls">
+            <button class="active" onclick="setHwChartMode('cpu_ram', this)">CPU + RAM</button>
+            <button onclick="setHwChartMode('cpu', this)">CPU Only</button>
+            <button onclick="setHwChartMode('ram', this)">RAM Only</button>
+          </div>
+        </div>
+        <div class="chart-container"><canvas id="chart-hw-line"></canvas></div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div class="chart-card-title">💾 Disk & GPU</div>
+          <div class="chart-controls" id="disk-gpu-controls">
+            <button class="active" onclick="setDiskGpuMode('both', this)">Disk + GPU</button>
+            <button onclick="setDiskGpuMode('disk', this)">Disk Only</button>
+            <button onclick="setDiskGpuMode('gpu', this)">GPU Only</button>
+          </div>
+        </div>
+        <div class="chart-container"><canvas id="chart-disk-gpu"></canvas></div>
+      </div>
+
+      <!-- Camera Chart -->
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div class="chart-card-title">📷 Camera Latency</div>
+          <div class="chart-controls">
+            <button class="active" onclick="refreshCharts()">🔄 Refresh</button>
+          </div>
+        </div>
+        <div class="chart-container"><canvas id="chart-cam-latency"></canvas></div>
+      </div>
+
+      <!-- Camera Status Doughnut -->
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div class="chart-card-title">📷 Camera Status</div>
+        </div>
+        <div class="chart-container"><canvas id="chart-cam-status"></canvas></div>
+      </div>
+
+      <!-- Service Chart -->
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div class="chart-card-title">🔧 Service Status</div>
+          <div class="chart-controls">
+            <button class="active" onclick="refreshCharts()">🔄 Refresh</button>
+          </div>
+        </div>
+        <div class="chart-container"><canvas id="chart-svc-status"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Data Tables -->
+    <div class="data-source-bar">
+      <div class="data-source-chip"><span class="label">📷 CSV:</span><span class="value" id="src-camera">—</span></div>
+      <div class="data-source-chip"><span class="label">⚙️ CSV:</span><span class="value" id="src-hardware">—</span></div>
+      <div class="data-source-chip"><span class="label">🔧 CSV:</span><span class="value" id="src-services">—</span></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><span class="icon">📷</span> Camera Data</div>
+      <div id="table-camera"><div class="empty-state">Loading...</div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title"><span class="icon">⚙️</span> Hardware Data</div>
+      <div id="table-hardware"><div class="empty-state">Loading...</div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title"><span class="icon">🔧</span> Service Data</div>
+      <div id="table-services"><div class="empty-state">Loading...</div></div>
+    </div>
+  </div>
+
+  <!-- ============ TAB: CAMERA CONFIG ============ -->
+  <div class="tab-panel" id="tab-config-camera">
+    <div class="panel">
+      <div class="panel-title"><span class="icon">📷</span> Camera Configuration</div>
+      <div class="json-toggle">
+        <label class="toggle-switch">
+          <input type="checkbox" id="raw-toggle-camera" onchange="toggleRawJson('camera')">
+          <span class="toggle-slider"></span>
+        </label>
+        <label for="raw-toggle-camera">Raw JSON</label>
+      </div>
+      <div id="config-form-camera"></div>
+      <div id="config-raw-wrap-camera" style="display:none">
+        <div class="form-group">
+          <label>Raw JSON</label>
+          <textarea id="config-raw-camera" rows="20"></textarea>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="saveConfig('camera')">💾 Save Config</button>
+        <button class="btn btn-success" onclick="saveAndRestart('camera')">🔄 Save & Restart</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ TAB: HARDWARE CONFIG ============ -->
+  <div class="tab-panel" id="tab-config-hardware">
+    <div class="panel">
+      <div class="panel-title"><span class="icon">⚙️</span> Hardware Configuration</div>
+      <div class="json-toggle">
+        <label class="toggle-switch">
+          <input type="checkbox" id="raw-toggle-hardware" onchange="toggleRawJson('hardware')">
+          <span class="toggle-slider"></span>
+        </label>
+        <label for="raw-toggle-hardware">Raw JSON</label>
+      </div>
+      <div id="config-form-hardware"></div>
+      <div id="config-raw-wrap-hardware" style="display:none">
+        <div class="form-group">
+          <label>Raw JSON</label>
+          <textarea id="config-raw-hardware" rows="20"></textarea>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="saveConfig('hardware')">💾 Save Config</button>
+        <button class="btn btn-success" onclick="saveAndRestart('hardware')">🔄 Save & Restart</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ TAB: SERVICES CONFIG ============ -->
+  <div class="tab-panel" id="tab-config-services">
+    <div class="panel">
+      <div class="panel-title"><span class="icon">🔧</span> Services Configuration</div>
+      <div class="json-toggle">
+        <label class="toggle-switch">
+          <input type="checkbox" id="raw-toggle-services" onchange="toggleRawJson('services')">
+          <span class="toggle-slider"></span>
+        </label>
+        <label for="raw-toggle-services">Raw JSON</label>
+      </div>
+      <div id="config-form-services"></div>
+      <div id="config-raw-wrap-services" style="display:none">
+        <div class="form-group">
+          <label>Raw JSON</label>
+          <textarea id="config-raw-services" rows="20"></textarea>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="saveConfig('services')">💾 Save Config</button>
+        <button class="btn btn-success" onclick="saveAndRestart('services')">🔄 Save & Restart</button>
+      </div>
+    </div>
+  </div>
+
+
+
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+<script src="/static/js/charts.js"></script>
+<script src="/static/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+logs/
+runtime/
+sample-data/
+*.jpg
+*.csv
+*.log
+*.env

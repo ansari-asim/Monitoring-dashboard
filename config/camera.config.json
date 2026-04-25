@@ -1,0 +1,22 @@
+{
+  "cameras": [
+    {
+      "name": "Cam_1",
+      "url": "rtsp://192.168.1.113:8554/test"
+    }
+  ],
+  "check_interval_seconds": 10,
+  "offline_confirm_seconds": 5,
+  "log_directory": "logs",
+  "latency_threshold_ms": 1,
+  "save_csv": true,
+  "save_frame": true,
+  "email_alerts_enabled": true,
+  "google_chat_enabled": true,
+  "email_settings": {
+    "receiver": [
+      "aasim2495@gmail.com"
+    ],
+    "subject": "Camera Alert Notification"
+  }
+}

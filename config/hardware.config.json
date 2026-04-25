@@ -1,0 +1,28 @@
+{
+  "interval_seconds": 10,
+  "csv_file": "sample-data/hardware_metrics.csv",
+  "alert_cooldown_minutes": 1,
+  "thresholds": {
+    "cpu_percent": 10,
+    "ram_gb": 2,
+    "gpu_util_percent": 10,
+    "vram_gb": 1,
+    "disk_gb": 10
+  },
+  "google_chat": {
+    "enabled": true
+  },
+  "email": {
+    "enabled": true,
+    "to_emails": [
+      "aasim2495@gmail.com"
+    ],
+    "subject": "Asim Hardware Alert"
+  },
+  "filters": {
+    "cpu_name_contains": "Asim CPU",
+    "gpu_names": [
+      "Jetson NX"
+    ]
+  }
+}
