@@ -7,7 +7,7 @@
   "dotnet_apps": [],
   "linux_services": [
     {
-      "name": "RTSP",
+      "name": "RTSP service",
       "service_name": "dummy-rtsp.service",
       "enabled": true
     }

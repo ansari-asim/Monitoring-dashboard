@@ -310,3 +310,29 @@ document.addEventListener('DOMContentLoaded',()=>{
   startStatusPoll();
   switchTab('overview');
 });
+
+// ---- UI Enhancements ----
+// Global time points (used by charts module)
+window.TIME_POINTS = 80; // default mapping (adjusted by setTimeRange)
+
+function setTimeRange(val){
+  // Map human ranges to number of points shown in charts
+  const map = { '5m': 40, '15m': 80, '1h': 200, '6h': 500, '24h': 1000 };
+  window.TIME_POINTS = map[val] || 80;
+  // re-render charts immediately
+  try{ if(typeof refreshCharts==='function') refreshCharts(); }catch(e){}
+}
+
+function downloadPanelCSV(key){
+  // key: camera|hardware|services
+  if(!key) return;
+  const st = tableState[key];
+  if(!st || !st.headers || !st.rows) return toast('No data to download','info');
+  // construct CSV from current rows (latest first)
+  const rows = [...st.rows].reverse();
+  const csv = [st.headers.join(',')].concat(rows.map(r=>r.map(c=>`"${String(c||'').replace(/"/g,'""')}"`).join(','))).join('\n');
+  const blob = new Blob([csv],{type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `${key}-data.csv`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  toast('CSV downloaded','success');
+}

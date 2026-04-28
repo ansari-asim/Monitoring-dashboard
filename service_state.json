@@ -1,3 +1,4 @@
 {
-  "linux::RTSP": true
+  "linux::RTSP": true,
+  "linux::RTSP service": true
 }
