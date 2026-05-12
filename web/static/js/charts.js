@@ -1,7 +1,7 @@
 /* ============================================================
    Charts Module — Grafana-Inspired Visualizations
    ============================================================ */
-let hwChart=null,diskGpuChart=null,camLatChart=null,camStatusChart=null,svcChart=null;
+let hwChart=null,diskGpuChart=null,networkChart=null,camLatChart=null;
 let sparkCharts={};
 let hwMode='cpu_ram',dgMode='both';
 let _hwData=null,_camData=null,_svcData=null;
@@ -67,19 +67,6 @@ function sparklineOpts(){
   };
 }
 
-function doughnutOpts(){
-  return {
-    responsive:true, maintainAspectRatio:false, cutout:'70%', animation:false,
-    plugins:{
-      legend:{position:'right',labels:{color:'#ccccdc',font:{...CHART_FONT,size:11},usePointStyle:true,boxWidth:8}},
-      tooltip:{
-        backgroundColor:'rgba(24,27,31,0.95)', titleColor:'#eeeeee', bodyColor:'#ccccdc', borderColor:'#2c3235', borderWidth:1,
-        padding:8, cornerRadius:2, bodyFont:{...CHART_FONT,size:11}
-      }
-    }
-  };
-}
-
 function barOpts(yLabel){
   return {
     responsive:true, maintainAspectRatio:false, animation:false,
@@ -127,6 +114,47 @@ function updateSparkline(id, data, color) {
   });
 }
 
+function safeStatText(id, value, suffix=''){
+  const el=document.getElementById(id);
+  if(el) el.textContent = `${value}${suffix}`;
+}
+
+function setText(id, value){
+  const el=document.getElementById(id);
+  if(el) el.textContent=value;
+}
+
+function setWidth(id, pct){
+  const el=document.getElementById(id);
+  if(el) el.style.width=`${Math.max(0,Math.min(100,pct))}%`;
+}
+
+function metricValue(value){
+  const n=parseFloat(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function compactHardwareRows(hd, rows){
+  const ti=hd.indexOf('time');
+  if(ti<0) return [];
+  const byTime=new Map();
+  rows.forEach(r=>{
+    const t=r[ti]||'';
+    if(!t) return;
+    if(!byTime.has(t)) byTime.set(t, r);
+    else {
+      const existing=byTime.get(t);
+      const gi=hd.indexOf('gpu_util_percent');
+      const currentGpu=gi>=0 ? metricValue(r[gi]) : null;
+      const existingGpu=gi>=0 ? metricValue(existing[gi]) : null;
+      if(currentGpu !== null && (existingGpu === null || currentGpu > existingGpu)) {
+        byTime.set(t, r);
+      }
+    }
+  });
+  return Array.from(byTime.values());
+}
+
 // ---- Hardware Line Chart & Single Stats ----
 function buildHwChart(hd,rows){
   hwChart=destroy(hwChart);
@@ -156,6 +184,22 @@ function buildHwChart(hd,rows){
     const diskArr = rows.slice(-Math.min(pts3,60)).map(r => parseFloat(r[di])||0);
     updateSparkline('spark-disk', diskArr, COLORS.green);
   }
+  const ndi = hd.indexOf('net_download_mbps');
+  const ui = hd.indexOf('net_upload_mbps');
+  if (ndi >= 0) {
+    const latestDown = parseFloat(rows[rows.length-1][ndi])||0;
+    safeStatText('stat-net-down', latestDown.toFixed(2), ' Mbps');
+    const pts4 = window.TIME_POINTS || 80;
+    const downArr = rows.slice(-Math.min(pts4,60)).map(r => parseFloat(r[ndi])||0);
+    updateSparkline('spark-net-down', downArr, COLORS.teal);
+  }
+  if (ui >= 0) {
+    const latestUp = parseFloat(rows[rows.length-1][ui])||0;
+    safeStatText('stat-net-up', latestUp.toFixed(2), ' Mbps');
+    const pts5 = window.TIME_POINTS || 80;
+    const upArr = rows.slice(-Math.min(pts5,60)).map(r => parseFloat(r[ui])||0);
+    updateSparkline('spark-net-up', upArr, COLORS.orange);
+  }
 
   // Chart Update
   const ptsAll = window.TIME_POINTS || 80;
@@ -179,17 +223,40 @@ function buildDiskGpuChart(hd,rows){
   const ti=hd.indexOf('time'),di=hd.indexOf('disk_used_gb'),gi=hd.indexOf('gpu_util_percent');
   if(ti<0)return;
   const ptsAll = window.TIME_POINTS || 80;
-  const last=rows.slice(-ptsAll);
+  const last=compactHardwareRows(hd, rows).slice(-ptsAll);
   const labels=last.map(r=>r[ti]||'');
   const ds=[];
   if((dgMode==='both'||dgMode==='disk')&&di>=0)
-    ds.push(makeLineDS('Disk (GB)',last.map(r=>parseFloat(r[di])||0),COLORS.green));
+    ds.push(makeLineDS('Disk (GB)',last.map(r=>metricValue(r[di]) ?? null),COLORS.green));
   if((dgMode==='both'||dgMode==='gpu')&&gi>=0)
-    ds.push(makeLineDS('GPU %',last.map(r=>parseFloat(r[gi])||0),COLORS.purple,dgMode==='both'?'y1':undefined));
+    ds.push(makeLineDS('GPU %',last.map(r=>metricValue(r[gi])),COLORS.purple,dgMode==='both'?'y1':undefined));
   const ctx=document.getElementById('chart-disk-gpu');
   if(!ctx)return;
   const opts=dgMode==='both'?lineOpts('Disk (GB)','GPU %'):lineOpts(dgMode==='disk'?'Disk (GB)':'GPU %');
+  if(opts.scales.y1){
+    opts.scales.y1.min=0;
+    opts.scales.y1.max=100;
+  } else if(dgMode==='gpu') {
+    opts.scales.y.min=0;
+    opts.scales.y.max=100;
+  }
   diskGpuChart=new Chart(ctx,{type:'line',data:{labels,datasets:ds},options:opts});
+}
+
+function buildNetworkChart(hd, rows){
+  networkChart=destroy(networkChart);
+  if(!hd||!rows.length)return;
+  const ti=hd.indexOf('time'),di=hd.indexOf('net_download_mbps'),ui=hd.indexOf('net_upload_mbps');
+  if(ti<0||(di<0&&ui<0))return;
+  const ptsAll = window.TIME_POINTS || 80;
+  const last=compactHardwareRows(hd, rows).slice(-ptsAll);
+  const labels=last.map(r=>r[ti]||'');
+  const ds=[];
+  if(di>=0) ds.push(makeLineDS('Download Mbps',last.map(r=>metricValue(r[di]) ?? 0),COLORS.teal));
+  if(ui>=0) ds.push(makeLineDS('Upload Mbps',last.map(r=>metricValue(r[ui]) ?? 0),COLORS.yellow));
+  const ctx=document.getElementById('chart-network');
+  if(!ctx)return;
+  networkChart=new Chart(ctx,{type:'line',data:{labels,datasets:ds},options:lineOpts('Mbps')});
 }
 
 // ---- Camera Latency Bar Chart & Single Stats ----
@@ -231,22 +298,19 @@ function buildCamChart(hd,rows){
 }
 
 function buildCamStatusChart(cams){
-  camStatusChart=destroy(camStatusChart);
   let ok=0,fail=0;
   Object.values(cams).forEach(c=>{if(c.latestStatus==='Connected')ok++;else fail++;});
   if(ok+fail===0)return;
-  const ctx=document.getElementById('chart-cam-status');
-  if(!ctx)return;
-  camStatusChart=new Chart(ctx,{type:'doughnut',data:{labels:['Connected','Disconnected'],
-    datasets:[{data:[ok,fail],
-      backgroundColor:[COLORS.green,COLORS.red],
-      borderColor: '#181b1f', borderWidth:2}]},
-    options:doughnutOpts()});
+  const total=ok+fail;
+  setText('cam-health-count', `${ok} / ${total}`);
+  setText('cam-health-ok-text', ok);
+  setText('cam-health-bad-text', fail);
+  setWidth('cam-health-ok', (ok/total)*100);
+  setWidth('cam-health-bad', (fail/total)*100);
 }
 
-// ---- Service Status Doughnut & Single Stats ----
+// ---- Service Status & Single Stats ----
 function buildSvcChart(hd,rows){
-  svcChart=destroy(svcChart);
   if(!hd||!rows.length)return;
   const si=hd.indexOf('Status'),ni=hd.indexOf('Service');
   if(si<0)return;
@@ -260,19 +324,18 @@ function buildSvcChart(hd,rows){
   document.getElementById('stat-svcs-desc').textContent = `${run+stop} Total`;
 
   if(run+stop===0)return;
-  const ctx=document.getElementById('chart-svc-status');
-  if(!ctx)return;
-  svcChart=new Chart(ctx,{type:'doughnut',data:{labels:['Running','Stopped'],
-    datasets:[{data:[run,stop],
-      backgroundColor:[COLORS.green,COLORS.red],
-      borderColor:'#181b1f', borderWidth:2}]},
-    options:doughnutOpts()});
+  const total=run+stop;
+  setText('svc-health-count', `${run} / ${total}`);
+  setText('svc-health-ok-text', run);
+  setText('svc-health-bad-text', stop);
+  setWidth('svc-health-ok', (run/total)*100);
+  setWidth('svc-health-bad', (stop/total)*100);
 }
 
 // ---- Refresh all charts ----
 async function refreshCharts(){
   const hw=await api('/api/data/hardware');
-  if(hw&&hw.headers){_hwData=hw;buildHwChart(hw.headers,hw.rows);buildDiskGpuChart(hw.headers,hw.rows);}
+  if(hw&&hw.headers){_hwData=hw;buildHwChart(hw.headers,hw.rows);buildDiskGpuChart(hw.headers,hw.rows);buildNetworkChart(hw.headers,hw.rows);}
   const cam=await api('/api/data/camera');
   if(cam&&cam.headers){_camData=cam;buildCamChart(cam.headers,cam.rows);}
   const svc=await api('/api/data/services');

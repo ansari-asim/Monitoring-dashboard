@@ -9,6 +9,10 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
+<script>
+  window.USER_ROLE = {{ role|tojson }};
+  window.USER_NAME = {{ username|tojson }};
+</script>
 <div class="app-layout">
 
   <div class="main-wrapper">
@@ -21,12 +25,16 @@
         <nav class="topbar-nav">
           <button class="nav-item active" data-tab="overview" onclick="switchTab('overview')">Dashboards</button>
           <div class="nav-divider"></div>
-          <button class="nav-item" data-tab="config-camera" onclick="switchTab('config-camera')">Camera Config</button>
-          <button class="nav-item" data-tab="config-hardware" onclick="switchTab('config-hardware')">Hardware Config</button>
-          <button class="nav-item" data-tab="config-services" onclick="switchTab('config-services')">Services Config</button>
+          <button class="nav-item admin-only" data-tab="config-camera" onclick="switchTab('config-camera')">Camera Config</button>
+          <button class="nav-item admin-only" data-tab="config-hardware" onclick="switchTab('config-hardware')">Hardware Config</button>
+          <button class="nav-item admin-only" data-tab="config-services" onclick="switchTab('config-services')">Services Config</button>
         </nav>
       </div>
       <div class="topbar-right">
+        <div class="user-chip">
+          <span class="user-name" id="user-name"></span>
+          <span class="user-role" id="user-role"></span>
+        </div>
         <div class="refresh-controls">
             <select id="auto-refresh-select" class="refresh-select" onchange="updateAutoRefresh()">
             <option value="0">Off</option>
@@ -40,8 +48,9 @@
           </button>
         </div>
         <div class="global-actions">
-          <button class="btn btn-success btn-sm" onclick="startAll()">Start All</button>
-          <button class="btn btn-danger btn-sm" onclick="stopAll()">Stop All</button>
+          <button class="btn btn-success btn-sm admin-only" onclick="startAll()">Start All</button>
+          <button class="btn btn-danger btn-sm admin-only" onclick="stopAll()">Stop All</button>
+          <a class="btn btn-ghost btn-sm" href="/logout">Logout</a>
         </div>
       </div>
     </header>
@@ -63,9 +72,9 @@
               </div>
             </div>
             <div class="status-card-actions">
-              <button class="btn btn-primary btn-sm" onclick="startMonitor('camera')">Start</button>
-              <button class="btn btn-danger btn-sm" onclick="stopMonitor('camera')">Stop</button>
-              <button class="btn btn-ghost btn-sm" onclick="restartMonitor('camera')">Restart</button>
+              <button class="btn btn-primary btn-sm admin-only" onclick="startMonitor('camera')">Start</button>
+              <button class="btn btn-danger btn-sm admin-only" onclick="stopMonitor('camera')">Stop</button>
+              <button class="btn btn-ghost btn-sm admin-only" onclick="restartMonitor('camera')">Restart</button>
             </div>
           </div>
           <div class="status-card stopped" id="card-hardware">
@@ -77,9 +86,9 @@
               </div>
             </div>
             <div class="status-card-actions">
-              <button class="btn btn-primary btn-sm" onclick="startMonitor('hardware')">Start</button>
-              <button class="btn btn-danger btn-sm" onclick="stopMonitor('hardware')">Stop</button>
-              <button class="btn btn-ghost btn-sm" onclick="restartMonitor('hardware')">Restart</button>
+              <button class="btn btn-primary btn-sm admin-only" onclick="startMonitor('hardware')">Start</button>
+              <button class="btn btn-danger btn-sm admin-only" onclick="stopMonitor('hardware')">Stop</button>
+              <button class="btn btn-ghost btn-sm admin-only" onclick="restartMonitor('hardware')">Restart</button>
             </div>
           </div>
           <div class="status-card stopped" id="card-services">
@@ -91,9 +100,9 @@
               </div>
             </div>
             <div class="status-card-actions">
-              <button class="btn btn-primary btn-sm" onclick="startMonitor('services')">Start</button>
-              <button class="btn btn-danger btn-sm" onclick="stopMonitor('services')">Stop</button>
-              <button class="btn btn-ghost btn-sm" onclick="restartMonitor('services')">Restart</button>
+              <button class="btn btn-primary btn-sm admin-only" onclick="startMonitor('services')">Start</button>
+              <button class="btn btn-danger btn-sm admin-only" onclick="stopMonitor('services')">Stop</button>
+              <button class="btn btn-ghost btn-sm admin-only" onclick="restartMonitor('services')">Restart</button>
             </div>
           </div>
         </div>
@@ -116,6 +125,16 @@
             <div class="stat-sparkline"><canvas id="spark-disk"></canvas></div>
           </div>
           <div class="stat-panel">
+            <div class="stat-title">Network Download</div>
+            <div class="stat-value net-down-val" id="stat-net-down">-- Mbps</div>
+            <div class="stat-sparkline"><canvas id="spark-net-down"></canvas></div>
+          </div>
+          <div class="stat-panel">
+            <div class="stat-title">Network Upload</div>
+            <div class="stat-value net-up-val" id="stat-net-up">-- Mbps</div>
+            <div class="stat-sparkline"><canvas id="spark-net-up"></canvas></div>
+          </div>
+          <div class="stat-panel">
             <div class="stat-title">Active Cameras</div>
             <div class="stat-value cam-val" id="stat-cams">--</div>
             <div class="stat-desc" id="stat-cams-desc">-- Total</div>
@@ -127,8 +146,8 @@
           </div>
         </div>
 
-        <!-- ============ CHARTS ROW 1 ============ -->
-        <div class="grafana-grid">
+        <!-- ============ CHARTS ============ -->
+        <div class="grafana-grid dashboard-chart-grid">
           <div class="grafana-panel cpu-ram-panel">
             <div class="panel-header">
               <div class="panel-title">CPU & Memory Usage</div>
@@ -154,10 +173,17 @@
             </div>
             <div class="panel-content chart-wrapper"><canvas id="chart-disk-gpu"></canvas></div>
           </div>
-        </div>
 
-        <!-- ============ CHARTS ROW 2 ============ -->
-        <div class="grafana-grid grid-3">
+          <div class="grafana-panel network-panel">
+            <div class="panel-header">
+              <div class="panel-title">Network Throughput</div>
+              <div class="panel-actions">
+                <button class="panel-icon-btn" onclick="downloadPanelCSV('hardware')" title="Download CSV">CSV</button>
+              </div>
+            </div>
+            <div class="panel-content chart-wrapper"><canvas id="chart-network"></canvas></div>
+          </div>
+
           <div class="grafana-panel">
             <div class="panel-header">
               <div class="panel-title">Camera Latency (Avg/Max)</div>
@@ -168,24 +194,44 @@
             <div class="panel-content chart-wrapper"><canvas id="chart-cam-latency"></canvas></div>
           </div>
           
-          <div class="grafana-panel">
+          <div class="grafana-panel status-summary-panel">
             <div class="panel-header">
-              <div class="panel-title">Camera Status</div>
+              <div class="panel-title">Health Status</div>
               <div class="panel-actions">
                 <button class="panel-icon-btn" onclick="downloadPanelCSV('camera')" title="Download CSV">CSV</button>
+                <button class="panel-icon-btn" onclick="downloadPanelCSV('services')" title="Download CSV">SVC</button>
               </div>
             </div>
-            <div class="panel-content chart-wrapper pie-wrapper"><canvas id="chart-cam-status"></canvas></div>
-          </div>
-
-          <div class="grafana-panel">
-            <div class="panel-header">
-              <div class="panel-title">Service Status</div>
-              <div class="panel-actions">
-                <button class="panel-icon-btn" onclick="downloadPanelCSV('services')" title="Download CSV">CSV</button>
+            <div class="panel-content">
+              <div class="health-block">
+                <div class="health-head">
+                  <span>Camera</span>
+                  <strong id="cam-health-count">-- / --</strong>
+                </div>
+                <div class="health-meter">
+                  <span id="cam-health-ok" class="health-ok" style="width:0%"></span>
+                  <span id="cam-health-bad" class="health-bad" style="width:0%"></span>
+                </div>
+                <div class="health-legend">
+                  <span><i class="dot ok"></i><b id="cam-health-ok-text">0</b> Connected</span>
+                  <span><i class="dot bad"></i><b id="cam-health-bad-text">0</b> Down</span>
+                </div>
+              </div>
+              <div class="health-block">
+                <div class="health-head">
+                  <span>Services</span>
+                  <strong id="svc-health-count">-- / --</strong>
+                </div>
+                <div class="health-meter">
+                  <span id="svc-health-ok" class="health-ok" style="width:0%"></span>
+                  <span id="svc-health-bad" class="health-bad" style="width:0%"></span>
+                </div>
+                <div class="health-legend">
+                  <span><i class="dot ok"></i><b id="svc-health-ok-text">0</b> Running</span>
+                  <span><i class="dot bad"></i><b id="svc-health-bad-text">0</b> Stopped</span>
+                </div>
               </div>
             </div>
-            <div class="panel-content chart-wrapper pie-wrapper"><canvas id="chart-svc-status"></canvas></div>
           </div>
         </div>
 
@@ -205,7 +251,7 @@
       </div>
 
       <!-- ============ TAB: CAMERA CONFIG ============ -->
-      <div class="tab-panel" id="tab-config-camera">
+      <div class="tab-panel admin-only" id="tab-config-camera">
         <div class="grafana-panel panel">
           <div class="panel-header"><div class="panel-title">Camera Configuration</div></div>
           <div class="panel-content">
@@ -224,15 +270,15 @@
               </div>
             </div>
             <div class="form-actions">
-              <button class="btn btn-primary" onclick="saveConfig('camera')">Save Config</button>
-              <button class="btn btn-success" onclick="saveAndRestart('camera')">Save & Restart</button>
+              <button class="btn btn-primary admin-only" onclick="saveConfig('camera')">Save Config</button>
+              <button class="btn btn-success admin-only" onclick="saveAndRestart('camera')">Save & Restart</button>
             </div>
           </div>
         </div>
       </div>
 
       <!-- ============ TAB: HARDWARE CONFIG ============ -->
-      <div class="tab-panel" id="tab-config-hardware">
+      <div class="tab-panel admin-only" id="tab-config-hardware">
         <div class="grafana-panel panel">
           <div class="panel-header"><div class="panel-title">Hardware Configuration</div></div>
           <div class="panel-content">
@@ -251,15 +297,15 @@
               </div>
             </div>
             <div class="form-actions">
-              <button class="btn btn-primary" onclick="saveConfig('hardware')">Save Config</button>
-              <button class="btn btn-success" onclick="saveAndRestart('hardware')">Save & Restart</button>
+              <button class="btn btn-primary admin-only" onclick="saveConfig('hardware')">Save Config</button>
+              <button class="btn btn-success admin-only" onclick="saveAndRestart('hardware')">Save & Restart</button>
             </div>
           </div>
         </div>
       </div>
 
       <!-- ============ TAB: SERVICES CONFIG ============ -->
-      <div class="tab-panel" id="tab-config-services">
+      <div class="tab-panel admin-only" id="tab-config-services">
         <div class="grafana-panel panel">
           <div class="panel-header"><div class="panel-title">Services Configuration</div></div>
           <div class="panel-content">
@@ -278,8 +324,8 @@
               </div>
             </div>
             <div class="form-actions">
-              <button class="btn btn-primary" onclick="saveConfig('services')">Save Config</button>
-              <button class="btn btn-success" onclick="saveAndRestart('services')">Save & Restart</button>
+              <button class="btn btn-primary admin-only" onclick="saveConfig('services')">Save Config</button>
+              <button class="btn btn-success admin-only" onclick="saveAndRestart('services')">Save & Restart</button>
             </div>
           </div>
         </div>

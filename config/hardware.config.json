@@ -10,10 +10,10 @@
     "disk_gb": 10
   },
   "google_chat": {
-    "enabled": true
+    "enabled": false
   },
   "email": {
-    "enabled": true,
+    "enabled": false,
     "to_emails": [
       "aasim2495@gmail.com"
     ],
@@ -21,8 +21,6 @@
   },
   "filters": {
     "cpu_name_contains": "Asim CPU",
-    "gpu_names": [
-      "Jetson NX"
-    ]
+    "gpu_names": []
   }
 }

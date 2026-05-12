@@ -2,18 +2,57 @@
    Monitoring Dashboard — Main App Logic
    ============================================================ */
 let currentTab='overview',statusPollTimer=null,overviewRefreshTimer=null;
+let adminIdleTimer=null;
+const USER_ROLE=(window.USER_ROLE||'user').toLowerCase();
 
 // Pagination state: {key: {page, pageSize, headers, rows}}
 const tableState={camera:{page:0,pageSize:10,headers:[],rows:[]},
   hardware:{page:0,pageSize:10,headers:[],rows:[]},
   services:{page:0,pageSize:10,headers:[],rows:[]}};
 
-async function api(url,opts={}){try{const r=await fetch(url,opts);return await r.json();}catch(e){console.error('API:',e);return null;}}
+async function api(url,opts={}){
+  try{
+    const r=await fetch(url,opts);
+    if(r.status===401){window.location='/login';return null;}
+    const ct=r.headers.get('content-type')||'';
+    if(!ct.includes('application/json')) return null;
+    return await r.json();
+  }catch(e){console.error('API:',e);return null;}
+}
 function postApi(url){return api(url,{method:'POST'});}
 
 function toast(msg,type='info'){
   const c=document.getElementById('toast-container'),el=document.createElement('div');
   el.className=`toast ${type}`;el.textContent=msg;c.appendChild(el);setTimeout(()=>el.remove(),3000);
+}
+
+function isAdmin(){return USER_ROLE==='admin';}
+
+function forceAdminLogout(){
+  window.location='/logout';
+}
+
+function resetAdminIdleTimer(){
+  if(!isAdmin()) return;
+  if(adminIdleTimer) clearTimeout(adminIdleTimer);
+  adminIdleTimer=setTimeout(forceAdminLogout, 5 * 60 * 1000);
+}
+
+function bindAdminActivityTracking(){
+  if(!isAdmin()) return;
+  ['mousedown','mousemove','keydown','scroll','touchstart','click'].forEach(evt=>{
+    window.addEventListener(evt, resetAdminIdleTimer, {passive:true});
+  });
+  resetAdminIdleTimer();
+}
+
+function applyRoleRestrictions(){
+  const adminOnly=document.querySelectorAll('.admin-only');
+  adminOnly.forEach(el=>{el.style.display=isAdmin()?'':'none';});
+  const userName=document.getElementById('user-name');
+  const userRole=document.getElementById('user-role');
+  if(userName) userName.textContent=window.USER_NAME||'User';
+  if(userRole) userRole.textContent=isAdmin()?'Admin':'User';
 }
 
 // ---- Status ----
@@ -38,8 +77,9 @@ async function stopAll(){await postApi('/api/stop-all');toast('All monitors stop
 
 // ---- Tabs ----
 function switchTab(tab){
+  if(!isAdmin() && tab.startsWith('config-')) return;
   currentTab=tab;
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  document.querySelectorAll('.nav-item[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.id===`tab-${tab}`));
   if(tab==='overview'){
     loadOverviewData();
@@ -307,6 +347,11 @@ function ea(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/"/g,'&
 
 // ---- Init ----
 document.addEventListener('DOMContentLoaded',()=>{
+  applyRoleRestrictions();
+  if(!isAdmin()){
+    document.querySelectorAll('.admin-only').forEach(el=>el.style.display='none');
+  }
+  bindAdminActivityTracking();
   startStatusPoll();
   switchTab('overview');
 });

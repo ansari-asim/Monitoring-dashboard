@@ -7,10 +7,11 @@ A modern, lightweight, and highly configurable monitoring dashboard built with P
 ## ✨ Key Features
 
 - **Unified Dashboard:** A premium, dark-themed Single Page Application (SPA) with real-time status indicators.
-- **Dynamic Charts:** Built-in `Chart.js` visualizations for CPU/RAM usage, Disk/GPU usage, Camera Latency, and Service status.
+- **Dynamic Charts:** Built-in `Chart.js` visualizations for CPU/RAM usage, Disk/GPU usage, Network Bandwidth, Camera Latency, and Service status.
 - **Auto-Refreshing Data Tables:** Paginated historical data logs that refresh automatically every 10 seconds.
 - **Instant Alerts:** Get notified immediately via Email or Google Chat Webhooks if a camera drops, a server spikes in CPU, or a critical service crashes.
 - **Web-Based Configuration:** Edit monitor thresholds, add new cameras, and configure alert settings directly from the UI without touching the code.
+- **Role-Based Login:** Admin users can manage configuration and monitor controls; standard users can only view the dashboard and download CSV data.
 - **Cross-Platform:** Monitors Linux services (`systemctl`), Windows IIS sites, Python scripts, and .NET applications.
 
 ---
@@ -68,7 +69,15 @@ SENDER_EMAIL=your-email@gmail.com
 GOOGLE_CHAT_WEBHOOK=https://chat.googleapis.com/v1/spaces/...
 ```
 
-### 4. Start the Application
+### 4. Sign in
+Open the app and log in with one of the default accounts:
+
+- Admin: `admin` / `admin123`
+- User: `user` / `user123`
+
+Change these credentials in `config/auth.config.json` before deploying.
+
+### 5. Start the Application
 ```bash
 python3 app.py
 ```
@@ -84,9 +93,10 @@ Instead of simply pinging the host IP (which can yield false positives if the se
 - **Metrics:** Logs TCP handshake latency.
 
 ### 2. Hardware Monitor (`monitors/hardware.py`)
-Utilizes `psutil` and `GPUtil` to track system resources. 
+Utilizes `psutil` and `GPUtil` to track system resources.
 - **Alerts:** Triggers when custom thresholds (e.g., CPU > 80%, RAM > 8GB) are exceeded.
-- **Metrics:** Logs % usage across all cores, VRAM, and Disk Space.
+- **Metrics:** Logs % usage across all cores, VRAM, Disk Space, and live network download/upload throughput.
+- **GPU Detection:** Falls back to `nvidia-smi` if `GPUtil` does not detect the RTX card.
 
 ### 3. Service Monitor (`monitors/services.py`)
 Cross-platform service tracker.

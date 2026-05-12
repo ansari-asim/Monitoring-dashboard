@@ -2,7 +2,7 @@
   "cameras": [
     {
       "name": "Cam_1",
-      "url": "rtsp://192.168.1.113:8554/test"
+      "url": "rtsp://localhost:8554/test"
     }
   ],
   "check_interval_seconds": 10,
@@ -11,8 +11,8 @@
   "latency_threshold_ms": 1,
   "save_csv": true,
   "save_frame": true,
-  "email_alerts_enabled": true,
-  "google_chat_enabled": true,
+  "email_alerts_enabled": false,
+  "google_chat_enabled": false,
   "email_settings": {
     "receiver": [
       "aasim2495@gmail.com"

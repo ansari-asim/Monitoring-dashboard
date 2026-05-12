@@ -2,7 +2,7 @@
   "check_interval_seconds": 10,
   "state_file": "service_state.json",
   "log_directory": "logs",
-  "google_chat_enabled": true,
+  "google_chat_enabled": false,
   "python_scripts": [],
   "dotnet_apps": [],
   "linux_services": [
@@ -14,7 +14,7 @@
   ],
   "iis_sites": [],
   "email": {
-    "enabled": true,
+    "enabled": false,
     "to_emails": [
       "aasim2495@gmail.com"
     ],
